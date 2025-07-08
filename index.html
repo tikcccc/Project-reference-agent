@@ -84,10 +84,11 @@
         .analysis-card-content { font-size: 16px; font-weight: 500; }
         .analysis-card-content textarea { box-sizing: border-box; width: 100%; min-height: 100px; border: 1px solid #ccc; border-radius: 4px; padding: 8px; font-size: 14px; font-family: var(--font-family); resize: vertical; }
         .analysis-summary { grid-column: 1 / -1; }
-        .analysis-details { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; }
+        .analysis-details { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; margin-top: 20px; }
         .analysis-details h3 { margin-top: 0; }
         .analysis-details p, .analysis-details li { line-height: 1.7; }
         .analysis-details textarea { box-sizing: border-box; width: 100%; min-height: 150px; border: 1px solid #ccc; border-radius: 4px; padding: 8px; font-size: 14px; font-family: var(--font-family); resize: vertical; }
+        .full-width-card { grid-column: 1 / -1; }
 
         /* Step 2: Form Page */
         .multi-form-container { display: flex; gap: 24px; height: calc(100vh - 180px); }
@@ -208,6 +209,128 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .btn-loading { opacity: 0.7; cursor: not-allowed; }
         .btn-loading:hover { background-color: var(--primary-color) !important; }
+        
+        /* Custom Modal Styles */
+        .custom-modal-overlay { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background-color: rgba(0, 0, 0, 0.5); 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            z-index: 1002; 
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .custom-modal-overlay.show { 
+            opacity: 1; 
+            visibility: visible; 
+        }
+        
+        .custom-modal-container { 
+            background-color: white; 
+            border-radius: 8px; 
+            padding: 0; 
+            max-width: 500px; 
+            width: 90%; 
+            max-height: 80vh; 
+            display: flex; 
+            flex-direction: column; 
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            transform: translateY(-20px);
+            transition: transform 0.3s ease;
+        }
+        .custom-modal-overlay.show .custom-modal-container {
+            transform: translateY(0);
+        }
+        
+        .custom-modal-header { 
+            padding: 20px 24px 16px; 
+            border-bottom: 1px solid var(--border-color); 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+        }
+        .custom-modal-header h3 { 
+            margin: 0; 
+            font-size: 18px; 
+            font-weight: 600; 
+            color: var(--text-color);
+        }
+        .custom-modal-close { 
+            background: none; 
+            border: none; 
+            font-size: 24px; 
+            cursor: pointer; 
+            color: var(--text-light); 
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .custom-modal-close:hover {
+            background-color: #f0f0f0;
+            color: var(--text-color);
+        }
+        
+        .custom-modal-body { 
+            padding: 24px; 
+            overflow-y: auto; 
+            flex: 1;
+        }
+        .custom-modal-body p { 
+            margin: 0 0 16px; 
+            line-height: 1.6; 
+            color: var(--text-color);
+        }
+        .custom-modal-body p:last-child { 
+            margin-bottom: 0; 
+        }
+        
+        .custom-modal-footer { 
+            padding: 16px 24px; 
+            border-top: 1px solid var(--border-color); 
+            display: flex; 
+            justify-content: flex-end; 
+            gap: 12px; 
+        }
+        .custom-modal-footer button { 
+            padding: 10px 20px; 
+            border-radius: 6px; 
+            font-size: 14px; 
+            cursor: pointer; 
+            font-weight: 500; 
+            transition: all 0.3s;
+        }
+        .custom-modal-btn-cancel { 
+            background: white; 
+            border: 1px solid var(--border-color); 
+            color: var(--text-color); 
+        }
+        .custom-modal-btn-cancel:hover { 
+            background-color: #f0f0f0; 
+        }
+        .custom-modal-btn-confirm { 
+            background: var(--primary-color); 
+            border: none; 
+            color: white; 
+        }
+        .custom-modal-btn-confirm:hover:not(:disabled) { 
+            background-color: #205ac8; 
+        }
+        .custom-modal-btn-confirm:disabled { 
+            background-color: #b0c4de; 
+            cursor: not-allowed; 
+        }
+        
     </style>
 </head>
 <body>
@@ -334,6 +457,25 @@
     </div>
 </div>
 
+<!-- Custom Modal -->
+<div id="custom-modal" class="custom-modal-overlay">
+    <div class="custom-modal-container">
+        <div class="custom-modal-header">
+            <h3 id="custom-modal-title">提示</h3>
+            <button class="custom-modal-close" onclick="app.closeCustomModal()">&times;</button>
+        </div>
+        <div class="custom-modal-body">
+            <div id="custom-modal-message">
+                <p id="custom-modal-text"></p>
+            </div>
+        </div>
+        <div class="custom-modal-footer">
+            <button id="custom-modal-cancel-btn" class="custom-modal-btn-cancel" onclick="app.closeCustomModal()" style="display: none;">取消</button>
+            <button id="custom-modal-confirm-btn" class="custom-modal-btn-confirm" onclick="app.confirmCustomModal()">确定</button>
+        </div>
+    </div>
+</div>
+
 
 <script>
 // --- NAMESPACED APPLICATION LOGIC ---
@@ -353,10 +495,13 @@ const app = {
                 analysisResult: {
                     title: '武汉理工大学基建、维修、设备采购领域全过程管理平台采购项目',
                     client: '武汉理工大学',
+                    packageCount: '1',
+                    validPeriod: 'yyyy-mm-dd(起始日期) - yyyy-mm-dd(结束日期) 根据招标文件内容: - 提交投标文件截止时间: 2024年9月29日...',
                     budget: '990000元 (人民币)',
                     deadline: '2024-09-29',
-                    summary: '本次招标项目为武汉理工大学基建、维修、设备采购领域全过程管理平台的供货、开发、调试、验收及售后服务。 预算金额为99万元，最高限价相同。 项目要求提供国产图形引擎支持BIM可视化协同管理，并实现与校园CIM数据底座集成。',
-                    details: '<h3>二、主要功能要求</h3><ul><li>可视化驾驶舱: 实现基建、维修、设备采购项目从立项申请到验收阶段的一站式流程化、可视化数字化管理。</li><li>BIM可视化协同管理: 支持BIM模型在线轻量化浏览，多专业单体模型在线整合。</li></ul>'
+                    agency: '湖北亘鸿信诚咨询有限公司',
+                    summary: '本次招标项目为武汉理工大学基建、维修、设备采购领域全过程管理平台的供货、开发、调试、验收及售后服务。预算金额为99万元，最高限价相同。项目要求提供国产图形引擎支持BIM可视化协同管理，并实现与校园CIM数据底座集成。技术框架包括模块化微服务架构，支持私有云部署，并具备开放API接口能力。',
+                    details: '<h3>二、主要功能要求</h3><ul><li><strong>可视化驾驶舱</strong>: 实现基建、维修、设备采购项目从立项申请到验收阶段的一站式流程化、可视化数字化管理。提供项目总览、进度监控、资金管控等核心功能模块。</li><li><strong>BIM可视化协同管理</strong>: 支持BIM模型在线轻量化浏览，多专业单体模型在线整合。实现模型批注、版本管理、协同评审等功能。</li><li><strong>全过程管理平台</strong>: 涵盖项目立项、设计管理、采购管理、施工管理、验收管理全流程，支持多角色协同工作。</li><li><strong>数据集成与分析</strong>: 与校园CIM数据底座深度集成，提供数据可视化分析、报表生成、决策支持等功能。</li></ul><h3>三、技术要求</h3><ul><li><strong>系统架构</strong>: 采用微服务架构设计，支持模块化部署和横向扩展</li><li><strong>图形引擎</strong>: 必须采用国产图形引擎，支持WebGL渲染和移动端适配</li><li><strong>部署方式</strong>: 支持私有云部署，提供完整的运维管理工具</li><li><strong>接口标准</strong>: 提供标准REST API接口，支持第三方系统集成</li></ul>'
                 },
                 importedProjectIds: new Set(),
                 editedFormsData: new Map()
@@ -367,10 +512,13 @@ const app = {
                 analysisResult: {
                     title: '香港房屋委员会设计、供应、安装和维修保养升降机',
                     client: '香港房屋委员会',
-                    budget: 'N/A',
+                    packageCount: '3',
+                    validPeriod: '2024-12-01 - 2027-11-30 (3年服务期)',
+                    budget: 'HK$128,000,000 (港币)',
                     deadline: '2025-01-15',
-                    summary: '为香港各公共屋邨的升降机提供全面的设计、供应、安装及后续的维修保养服务。项目要求投标人具备丰富的垂直运输系统项目经验，并能提供高效、安全、可靠的解决方案。',
-                    details: '<h3>三、技术要求</h3><ul><li>升降机系统需符合最新的国际安全标准。</li><li>需提供智能监控系统，实现远程故障诊断。</li></ul>'
+                    agency: '香港政府物流服务署',
+                    summary: '为香港各公共屋邨的升降机提供全面的设计、供应、安装及后续的维修保养服务。项目要求投标人具备丰富的垂直运输系统项目经验，并能提供高效、安全、可靠的解决方案。服务范围覆盖全港约180个公共屋邨，涉及超过8000台升降机设备的维护管理。',
+                    details: '<h3>二、服务范围</h3><ul><li><strong>新安装升降机</strong>: 约200台新升降机的设计、供应和安装</li><li><strong>现有设备维护</strong>: 全港公共屋邨现有升降机的定期保养和紧急维修</li><li><strong>现代化改造</strong>: 老旧升降机的技术升级和安全改造</li><li><strong>24小时应急服务</strong>: 提供全年无休的故障响应和维修服务</li></ul><h3>三、技术要求</h3><ul><li><strong>安全标准</strong>: 升降机系统需符合最新的国际安全标准(ISO 25745, EN 81系列)</li><li><strong>智能监控</strong>: 需提供智能监控系统，实现远程故障诊断和预防性维护</li><li><strong>节能要求</strong>: 新安装设备需达到A级能效标准，减少20%以上能耗</li><li><strong>无障碍设计</strong>: 全面符合《残疾歧视条例》要求，提供完善的无障碍通行功能</li></ul><h3>四、服务水平要求</h3><ul><li><strong>响应时间</strong>: 紧急故障2小时内到场，一般维修24小时内处理</li><li><strong>可用率</strong>: 升降机系统年可用率不低于99.5%</li><li><strong>人员资质</strong>: 维修技师需持有相关专业证书和安全培训合格证</li></ul>'
                 },
                 importedProjectIds: new Set(),
                 editedFormsData: new Map()
@@ -397,6 +545,22 @@ const app = {
                     menu.classList.add('hidden');
                 }
             });
+        });
+
+        // Add keyboard support for modals
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (this.customModalState.isOpen) {
+                    this.closeCustomModal();
+                }
+            }
+        });
+
+        // Prevent modal from closing when clicking inside the modal container
+        document.getElementById('custom-modal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) {
+                this.closeCustomModal();
+            }
         });
 
         this.renderHistoryList();
@@ -459,12 +623,13 @@ const app = {
     },
 
     startNewAnalysis() {
-        alert("此为原型功能演示。将创建一个新的分析任务。");
-        this.currentState.activeTaskId = null;
-        this.updateActiveHistoryItem();
-        this.goToStep(0);
-        document.getElementById('upload-info').textContent = '支持 PDF, DOCX, TXT 等格式';
-        document.getElementById('generate-report-btn').disabled = true;
+        this.showAlert("此为原型功能演示。将创建一个新的分析任务。", "新建分析", "info").then(() => {
+            this.currentState.activeTaskId = null;
+            this.updateActiveHistoryItem();
+            this.goToStep(0);
+            document.getElementById('upload-info').textContent = '支持 PDF, DOCX, TXT 等格式';
+            document.getElementById('generate-report-btn').disabled = true;
+        });
     },
 
     handleFileSelect(event) {
@@ -477,10 +642,11 @@ const app = {
     },
 
     generateReport() {
-        alert("正在模拟AI分析并生成报告...");
-        setTimeout(() => {
-            this.loadStateForTask('task-1');
-        }, 1000);
+        this.showAlert("正在模拟AI分析并生成报告...", "生成报告", "info").then(() => {
+            setTimeout(() => {
+                this.loadStateForTask('task-1');
+            }, 1000);
+        });
     },
 
     // --- STEP 1: ANALYSIS PAGE LOGIC ---
@@ -493,7 +659,7 @@ const app = {
         // Render Toolbar
         const toolbar = document.getElementById('analysis-toolbar');
         toolbar.innerHTML = `
-            <a onclick="alert('正在刷新分析结果...')">刷新</a>
+            <a onclick="app.showAlert('正在刷新分析结果...', '刷新', 'info')">刷新</a>
             <div style="position: relative;">
                 <a onclick="this.nextElementSibling.classList.toggle('hidden')">导出文件</a>
                 <div class="dropdown-menu hidden">
@@ -510,18 +676,22 @@ const app = {
         const container = document.getElementById('analysis-content-area');
         container.innerHTML = `
             <div class="analysis-grid">
-                <div class="analysis-card"><div class="analysis-card-title">招标标题</div><div class="analysis-card-content">${result.title}</div></div>
-                <div class="analysis-card"><div class="analysis-card-title">招标单位</div><div class="analysis-card-content">${result.client}</div></div>
-                <div class="analysis-card"><div class="analysis-card-title">预算</div><div class="analysis-card-content">${result.budget}</div></div>
-                <div class="analysis-card"><div class="analysis-card-title">截止日期</div><div class="analysis-card-content">${result.deadline}</div></div>
+                <div class="analysis-card"><div class="analysis-card-title">📄 招标标题</div><div class="analysis-card-content">${result.title}</div></div>
+                <div class="analysis-card"><div class="analysis-card-title">🏢 招标单位</div><div class="analysis-card-content">${result.client}</div></div>
+                <div class="analysis-card"><div class="analysis-card-title">📦 采购包数量</div><div class="analysis-card-content">${result.packageCount}</div></div>
+                <div class="analysis-card"><div class="analysis-card-title">🏛️ 代理机构</div><div class="analysis-card-content">${result.agency}</div></div>
+                <div class="analysis-card"><div class="analysis-card-title">💰 预算</div><div class="analysis-card-content">${result.budget}</div></div>
+                <div class="analysis-card"><div class="analysis-card-title">⏰ 截止日期</div><div class="analysis-card-content">${result.deadline}</div></div>
+                <div class="analysis-card full-width-card"><div class="analysis-card-title">⏳ 有效期</div><div class="analysis-card-content">${result.validPeriod}</div></div>
                 <div class="analysis-summary">
-                    <div class="analysis-card-title">招标摘要</div>
+                    <div class="analysis-card-title">📋 招标摘要</div>
                     <div class="analysis-card-content" id="analysis-summary-content">
                         ${editMode ? `<textarea id="summary-textarea">${result.summary}</textarea>` : result.summary}
                     </div>
                 </div>
             </div>
             <div class="analysis-details">
+                <div class="analysis-card-title">📝 招标详情</div>
                 <div id="analysis-details-content">
                     ${editMode ? `<textarea id="details-textarea">${result.details}</textarea>` : result.details}
                 </div>
@@ -549,13 +719,15 @@ const app = {
         task.analysisResult.summary = newSummary;
         task.analysisResult.details = newDetails;
         
-        alert("分析结果已成功保存！");
-        this.toggleAnalysisEdit(false);
+        this.showAlert("分析结果已成功保存！", "保存成功", "success").then(() => {
+            this.toggleAnalysisEdit(false);
+        });
     },
     
     exportAnalysisFile(format) {
-        alert(`正在导出分析结果为 ${format} 格式... (此为原型功能演示)`);
-        document.querySelector('#analysis-toolbar .dropdown-menu').classList.add('hidden');
+        this.showAlert(`正在导出分析结果为 ${format} 格式... (此为原型功能演示)`, "导出分析", "info").then(() => {
+            document.querySelector('#analysis-toolbar .dropdown-menu').classList.add('hidden');
+        });
     },
 
     generateForms() {
@@ -802,7 +974,7 @@ const app = {
         document.querySelector(`#form-nav-item-${currentId} .form-nav-item-label`).textContent = currentData.title;
         document.getElementById('form-header-title').textContent = currentData.title;
 
-        alert(`项目 "${currentData.title}" 的更改已在Jarvis的“工作快照”中保存成功！`);
+        this.showAlert(`项目 "${currentData.title}" 的更改已在Jarvis的“工作快照”中保存成功！`);
         this.toggleFormEdit(false);
     },
 
@@ -866,8 +1038,9 @@ const app = {
 
     confirmExport(format) {
         const count = this.currentState.formExportSelection.size;
-        alert(`正在将 ${count} 个已选项目的最终数据合并导出为 ${format} 格式...\n(此为原型功能演示)`);
-        this.closeExportModal();
+        this.showAlert(`正在将 ${count} 个已选项目的最终数据合并导出为 ${format} 格式...\n(此为原型功能演示)`, "导出项目", "info").then(() => {
+            this.closeExportModal();
+        });
     },
     
     // --- IMAGE UPLOAD FUNCTIONALITY ---
@@ -1221,7 +1394,7 @@ const app = {
             if (projectId && type) {
                 this.showError(type, projectId, errorMsg);
             } else {
-                alert(errorMsg);
+                this.showCustomModal('错误', errorMsg, 'error');
             }
             return false;
         }
@@ -1231,12 +1404,113 @@ const app = {
             if (projectId && type) {
                 this.showError(type, projectId, errorMsg);
             } else {
-                alert(errorMsg);
+                this.showCustomModal('错误', errorMsg, 'error');
             }
             return false;
         }
         
         return true;
+    },
+    
+    // --- CUSTOM MODAL FUNCTIONALITY ---
+    customModalState: {
+        isOpen: false,
+        callback: null,
+        cancelCallback: null
+    },
+    
+    showCustomModal(title, message, type = 'info', showCancel = false, confirmText = '确定', cancelText = '取消') {
+        return new Promise((resolve, reject) => {
+            this.customModalState.isOpen = true;
+            this.customModalState.callback = resolve;
+            this.customModalState.cancelCallback = reject;
+            
+            const modal = document.getElementById('custom-modal');
+            const titleElement = document.getElementById('custom-modal-title');
+            const textElement = document.getElementById('custom-modal-text');
+            const confirmBtn = document.getElementById('custom-modal-confirm-btn');
+            const cancelBtn = document.getElementById('custom-modal-cancel-btn');
+            
+            // Set title and message
+            titleElement.textContent = title;
+            textElement.textContent = message;
+            
+            // Set button text
+            confirmBtn.textContent = confirmText;
+            cancelBtn.textContent = cancelText;
+            
+            // Show/hide cancel button
+            cancelBtn.style.display = showCancel ? 'block' : 'none';
+            
+            // Show modal with animation
+            modal.classList.add('show');
+            
+            // Focus on confirm button
+            setTimeout(() => {
+                confirmBtn.focus();
+            }, 100);
+        });
+    },
+    
+    closeCustomModal() {
+        if (!this.customModalState.isOpen) return;
+        
+        const modal = document.getElementById('custom-modal');
+        modal.classList.remove('show');
+        
+        this.customModalState.isOpen = false;
+        
+        // Call cancel callback if exists
+        if (this.customModalState.cancelCallback) {
+            this.customModalState.cancelCallback(false);
+        }
+        
+        // Reset callbacks
+        this.customModalState.callback = null;
+        this.customModalState.cancelCallback = null;
+    },
+    
+    confirmCustomModal() {
+        if (!this.customModalState.isOpen) return;
+        
+        const modal = document.getElementById('custom-modal');
+        modal.classList.remove('show');
+        
+        this.customModalState.isOpen = false;
+        
+        // Call confirm callback if exists
+        if (this.customModalState.callback) {
+            this.customModalState.callback(true);
+        }
+        
+        // Reset callbacks
+        this.customModalState.callback = null;
+        this.customModalState.cancelCallback = null;
+    },
+    
+    // Enhanced alert function that uses custom modal
+    showAlert(message, title = '提示', type = 'info') {
+        return this.showCustomModal(title, message, type);
+    },
+    
+    // Enhanced confirm function that uses custom modal
+    showConfirm(message, title = '确认', type = 'info') {
+        return this.showCustomModal(title, message, type, true, '确定', '取消');
+    },
+    
+    // Test modal function for demonstration
+    testModal() {
+        const modalTypes = ['info', 'success', 'warning', 'error'];
+        const messages = [
+            '这是一个信息提示模态框',
+            '操作成功完成！',
+            '请注意，这是一个警告信息',
+            '发生了错误，请检查输入'
+        ];
+        const titles = ['信息', '成功', '警告', '错误'];
+        
+        const randomIndex = Math.floor(Math.random() * modalTypes.length);
+        this.showAlert(messages[randomIndex], titles[randomIndex], modalTypes[randomIndex]);
     }
 };
 
