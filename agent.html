@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jarvis鹰眼 - AI项目匹配流程原型 (功能增强版)</title>
+    <style>
+        /* General Styling */
+        :root {
+            --primary-color: #2a6ee3;
+            --secondary-color: #6c757d;
+            --border-color: #e0e0e0;
+            --bg-color: #f4f5f7;
+            --text-color: #333;
+            --text-light: #888;
+            --card-bg: #fff;
+            --font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+        }
+        body {
+            margin: 0;
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-size: 14px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* App Layout */
+        .app-container { display: flex; height: 100vh; overflow: hidden; }
+        .sidebar { width: 280px; background-color: var(--card-bg); border-right: 1px solid var(--border-color); padding: 0; box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0; }
+        .sidebar-header { font-size: 18px; margin: 0; display: flex; align-items: center; padding: 16px; border-bottom: 1px solid var(--border-color); font-weight: 600; }
+        .sidebar-header img { width: 24px; margin-right: 10px; }
+        .sidebar-content { padding: 16px; flex: 1; overflow-y: auto; }
+        .new-analysis-btn { width: 100%; background-color: var(--primary-color); color: white; border: none; padding: 12px 16px; border-radius: 6px; font-size: 14px; cursor: pointer; margin-bottom: 16px; transition: background-color 0.3s; font-weight: 500; }
+        .new-analysis-btn:hover { background-color: #205ac8; }
+        .history-list h3 { font-size: 13px; color: var(--text-light); margin: 16px 0 12px 0; font-weight: 500; text-transform: uppercase; }
+        .history-list ul { list-style: none; padding: 0; margin: 0; }
+        .history-list li { padding: 12px; border-radius: 6px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background-color 0.3s, color 0.3s; font-size: 14px; line-height: 1.4; }
+        .history-list li:hover { background-color: #f8f9fa; }
+        .history-list li.active { background-color: #eaf1fd; color: var(--primary-color); font-weight: 600; }
+        .main-content { flex-grow: 1; padding: 24px; overflow-y: auto; }
+        .page { display: none; }
+        .page.active { display: block; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Page Headers & Controls */
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .page-header h1 { font-size: 24px; margin: 0; font-weight: 600; }
+        .header-title-toolbar { display: flex; align-items: center; gap: 24px; }
+        .toolbar { display: flex; align-items: center; gap: 16px; }
+        .toolbar a { color: var(--primary-color); text-decoration: none; font-size: 14px; cursor: pointer; }
+        .toolbar a:hover { text-decoration: underline; }
+        .header-actions { display: flex; gap: 12px; position: relative; }
+        .action-btn, .secondary-btn { background-color: var(--primary-color); color: white; border: 1px solid var(--primary-color); padding: 10px 20px; border-radius: 6px; font-size: 14px; cursor: pointer; transition: all 0.3s; font-weight: 500; }
+        .secondary-btn { background-color: transparent; color: var(--secondary-color); border: 1px solid #ccc; }
+        .action-btn:hover:not(:disabled) { background-color: #205ac8; border-color: #205ac8; }
+        .secondary-btn:hover { background-color: #f0f0f0; }
+        .action-btn:disabled { background-color: #b0c4de; border-color: #b0c4de; cursor: not-allowed; }
+        .dropdown-menu { position: absolute; top: 100%; right: 0; background-color: white; border: 1px solid var(--border-color); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 10; overflow: hidden; margin-top: 8px; }
+        .dropdown-menu a { display: block; padding: 10px 20px; color: var(--text-color); text-decoration: none; }
+        .dropdown-menu a:hover { background-color: #f0f0f0; }
+
+        /* Breadcrumb */
+        .breadcrumb-container { margin-bottom: 24px; font-size: 14px; }
+        .breadcrumb-item { color: var(--primary-color); text-decoration: none; cursor: pointer; }
+        .breadcrumb-item:hover { text-decoration: underline; }
+        .breadcrumb-item.active { color: var(--text-color); font-weight: bold; pointer-events: none; }
+        .breadcrumb-separator { margin: 0 8px; color: var(--text-light); }
+
+        /* Step 0: Upload Page */
+        .upload-page-container { max-width: 800px; margin: 40px auto; text-align: center; }
+        .upload-page-container h1 { font-size: 28px; margin-bottom: 12px; font-weight: 600; }
+        .upload-page-container p { color: var(--text-light); margin-bottom: 40px; font-size: 16px; line-height: 1.5; }
+        .upload-box { border: 2px dashed var(--border-color); border-radius: 8px; padding: 40px; margin-bottom: 32px; background-color: var(--card-bg); }
+        .upload-btn { background-color: var(--primary-color); color: white; border: none; padding: 12px 24px; border-radius: 6px; font-size: 14px; cursor: pointer; display: inline-block; font-weight: 500; transition: background-color 0.3s; }
+        #upload-info { font-size: 13px; color: var(--text-light); margin-top: 16px; line-height: 1.5; min-height: 20px; }
+        .generate-btn { width: 200px; padding: 14px; font-size: 16px; font-weight: 500; border-radius: 6px; margin-top: 20px; }
+
+        /* Step 1: Analysis Page */
+        .analysis-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 24px; }
+        .analysis-card, .analysis-summary { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; }
+        .analysis-card-title { color: var(--text-light); margin-bottom: 8px; }
+        .analysis-card-content { font-size: 16px; font-weight: 500; }
+        .analysis-card-content textarea { box-sizing: border-box; width: 100%; min-height: 100px; border: 1px solid #ccc; border-radius: 4px; padding: 8px; font-size: 14px; font-family: var(--font-family); resize: vertical; }
+        .analysis-summary { grid-column: 1 / -1; }
+        .analysis-details { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; }
+        .analysis-details h3 { margin-top: 0; }
+        .analysis-details p, .analysis-details li { line-height: 1.7; }
+        .analysis-details textarea { box-sizing: border-box; width: 100%; min-height: 150px; border: 1px solid #ccc; border-radius: 4px; padding: 8px; font-size: 14px; font-family: var(--font-family); resize: vertical; }
+
+        /* Step 2: Form Page */
+        .multi-form-container { display: flex; gap: 24px; height: calc(100vh - 180px); }
+        .form-nav { width: 280px; flex-shrink: 0; background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; display: flex; flex-direction: column; }
+        .form-nav-header { padding: 12px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        .form-nav-header button { background: none; border: none; color: var(--primary-color); cursor: pointer; font-size: 14px; padding: 4px; }
+        .form-nav-list { overflow-y: auto; flex-grow: 1; padding: 8px; }
+        .form-nav-item { display: flex; align-items: center; padding: 12px; border-radius: 6px; cursor: pointer; }
+        .form-nav-item:hover { background-color: #f0f0f0; }
+        .form-nav-item.active { background-color: #eaf1fd; }
+        .form-nav-item input[type="checkbox"] { margin-right: 12px; min-width: 16px; height: 16px; cursor: pointer; }
+        .form-nav-item-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .form-display-area { flex-grow: 1; overflow-y: auto; }
+        .form-container { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 24px; }
+        .form-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .form-header h3 { margin: 0; font-size: 20px; font-weight: 600; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group.full-width { grid-column: 1 / -1; }
+        .form-group label { margin-bottom: 8px; font-weight: 500; }
+        .form-group input, .form-group textarea { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; font-family: var(--font-family); }
+        .form-group input:disabled, .form-group textarea:disabled { background-color: #f9f9f9; color: #777; cursor: not-allowed; }
+        .form-group textarea { min-height: 120px; resize: vertical; }
+        .form-actions { grid-column: 1 / -1; text-align: left; margin-top: 32px; }
+        .form-actions .submit-btn { background-color: var(--primary-color); color: white; border: none; padding: 12px 28px; border-radius: 6px; font-size: 16px; cursor: pointer; transition: background-color 0.3s; }
+        .form-actions .submit-btn:hover { background-color: #205ac8; }
+        .hidden { display: none !important; }
+
+        /* Modal Styles */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-container { background-color: white; border-radius: 8px; padding: 0; max-width: 600px; width: 90%; max-height: 80vh; display: flex; flex-direction: column; }
+        .modal-header { padding: 16px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h3 { margin: 0; font-size: 18px; font-weight: 600; }
+        .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-light); }
+        .modal-content { padding: 24px; overflow-y: auto; }
+        .modal-project-list { max-height: 300px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 4px; }
+        .modal-project-item { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid var(--border-color); }
+        .modal-project-item:last-child { border-bottom: none; }
+        .modal-project-info h4 { margin: 0; font-size: 14px; font-weight: 500; }
+        .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px; margin-top: auto; }
+        .modal-footer button { padding: 10px 20px; border-radius: 6px; font-size: 14px; cursor: pointer; font-weight: 500; }
+        .modal-cancel { background: white; border: 1px solid var(--border-color); color: var(--text-color); }
+        .modal-confirm { background: var(--primary-color); border: none; color: white; }
+        .modal-cancel:hover { background-color: #f0f0f0; }
+        .modal-confirm:hover:not(:disabled) { background-color: #205ac8; }
+        .modal-confirm:disabled { background-color: #b0c4de; cursor: not-allowed; }
+        .modal-export-formats { margin-top: 16px; display: flex; gap: 12px; justify-content: center; }
+        
+        /* Login Modal Styles */
+        .login-modal .modal-container { max-width: 450px; }
+        .login-form { display: flex; flex-direction: column; gap: 16px; }
+        .login-form-group { display: flex; flex-direction: column; }
+        .login-form-group label { margin-bottom: 6px; font-weight: 500; color: var(--text-color); }
+        .login-form-group input { padding: 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px; }
+        .login-form-group input:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 2px rgba(42, 110, 227, 0.1); }
+        .login-system-info { background-color: #f8f9fa; padding: 16px; border-radius: 6px; margin-bottom: 20px; }
+        .login-system-info h4 { margin: 0 0 8px 0; color: var(--primary-color); font-size: 16px; }
+        .login-system-info p { margin: 0; color: var(--text-light); font-size: 14px; line-height: 1.5; }
+        .login-btn { background-color: var(--primary-color); color: white; border: none; padding: 12px 24px; border-radius: 6px; font-size: 14px; cursor: pointer; font-weight: 500; transition: background-color 0.3s; }
+        .login-btn:hover:not(:disabled) { background-color: #205ac8; }
+        .login-btn:disabled { background-color: #b0c4de; cursor: not-allowed; }
+        .login-status { margin-top: 16px; padding: 12px; border-radius: 6px; text-align: center; font-size: 14px; }
+        .login-status.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .login-status.error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .login-status.loading { background-color: #e7f3ff; color: var(--primary-color); border: 1px solid #bee5eb; }
+        
+        /* Image Upload Styles */
+        .image-upload-section { margin-top: 20px; }
+        .image-upload-area { border: 2px dashed var(--border-color); border-radius: 8px; padding: 20px; text-align: center; background-color: #fafafa; transition: all 0.3s; }
+        .image-upload-area:hover { border-color: var(--primary-color); background-color: #f0f8ff; }
+        .image-upload-area.dragover { border-color: var(--primary-color); background-color: #e6f3ff; }
+        .image-upload-btn { background-color: var(--primary-color); color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+        .image-upload-btn:hover { background-color: #205ac8; }
+        
+        /* Image Links List Styles */
+        .image-links-list { margin-top: 16px; padding: 0; border: 1px solid var(--border-color); border-radius: 6px; background-color: white; max-height: 200px; overflow-y: auto; }
+        .image-link-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #f0f0f0; transition: background-color 0.3s; }
+        .image-link-item:last-child { border-bottom: none; }
+        .image-link-item:hover { background-color: #f8f9fa; }
+        .image-link-content { flex: 1; display: flex; align-items: center; gap: 12px; }
+        .image-link-preview { color: var(--primary-color); text-decoration: none; font-size: 14px; cursor: pointer; transition: all 0.3s; }
+        .image-link-preview:hover { text-decoration: underline; color: #205ac8; }
+        .image-source-badge { font-size: 10px; padding: 2px 6px; border-radius: 3px; color: white; }
+        .image-source-badge.knowledge-base { background-color: rgba(42, 110, 227, 0.9); }
+        .image-source-badge.uploaded { background-color: rgba(40, 167, 69, 0.9); }
+        .image-link-actions { display: flex; gap: 8px; }
+        .image-link-actions button { background: none; border: none; padding: 4px 8px; border-radius: 3px; font-size: 12px; cursor: pointer; transition: all 0.3s; }
+        .image-replace-link-btn { color: var(--primary-color); background-color: rgba(42, 110, 227, 0.1); }
+        .image-replace-link-btn:hover { background-color: rgba(42, 110, 227, 0.2); }
+        .image-remove-link-btn { color: #dc3545; background-color: rgba(220, 53, 69, 0.1); }
+        .image-remove-link-btn:hover { background-color: rgba(220, 53, 69, 0.2); }
+        .empty-image-message { padding: 16px; text-align: center; color: var(--text-light); font-size: 14px; }
+        .image-preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; margin-top: 16px; }
+        .image-preview-item { position: relative; border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden; background-color: white; cursor: pointer; transition: all 0.3s; }
+        .image-preview-item:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .image-preview-item img { width: 100%; height: 80px; object-fit: cover; }
+        .image-preview-item .image-name { padding: 8px; font-size: 12px; color: var(--text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .image-preview-item .image-source { position: absolute; top: 4px; left: 4px; background-color: rgba(0, 0, 0, 0.7); color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; }
+        .image-preview-item .image-source.knowledge-base { background-color: rgba(42, 110, 227, 0.9); }
+        .image-preview-item .image-source.uploaded { background-color: rgba(40, 167, 69, 0.9); }
+        .image-remove-btn { position: absolute; top: 4px; right: 4px; background-color: rgba(255, 0, 0, 0.8); color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; }
+        .image-remove-btn:hover { background-color: rgba(255, 0, 0, 1); }
+        .image-replace-btn { position: absolute; bottom: 4px; right: 4px; background-color: rgba(42, 110, 227, 0.9); color: white; border: none; border-radius: 3px; padding: 2px 6px; cursor: pointer; font-size: 10px; }
+        .image-replace-btn:hover { background-color: rgba(42, 110, 227, 1); }
+        .image-upload-input { display: none; }
+        
+        /* Image Preview Modal Styles */
+        .image-preview-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.9); display: flex; justify-content: center; align-items: center; z-index: 1001; }
+        .image-preview-modal-content { max-width: 90%; max-height: 90%; position: relative; }
+        .image-preview-modal img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .image-preview-modal-close { position: absolute; top: -40px; right: 0; background: none; border: none; color: white; font-size: 30px; cursor: pointer; }
+        .image-preview-modal-info { position: absolute; bottom: -60px; left: 0; right: 0; color: white; text-align: center; }
+        .image-preview-modal-info h4 { margin: 0 0 5px 0; font-size: 16px; }
+        .image-preview-modal-info p { margin: 0; font-size: 14px; opacity: 0.8; }
+        
+        /* Loading Spinner */
+        .loading-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #f3f3f3; border-top: 2px solid var(--primary-color); border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .btn-loading { opacity: 0.7; cursor: not-allowed; }
+        .btn-loading:hover { background-color: var(--primary-color) !important; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTUgMTJIMTNNMyAxOEwxMyAxOE0zIDZMMTggNk0xMyAxMkwyMCAxOU0xMyAxMkwyMCA1IiBzdHJva2U9IiMyYTZlZTMiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+Cjwvc3ZnPgo=" alt="logo">
+            <span>Jarvis 鹰眼</span>
+        </div>
+        <div class="sidebar-content">
+            <button class="new-analysis-btn" onclick="app.startNewAnalysis()">+ 新建分析</button>
+            <div class="history-list">
+                <h3>历史记录</h3>
+                <ul id="history-list-ul"></ul>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <input type="file" id="tender-upload" class="hidden" multiple>
+        <div id="breadcrumb-container" class="breadcrumb-container"></div>
+
+        <!-- STEP 0: UPLOAD PAGE -->
+        <div id="page-0" class="page">
+            <div class="upload-page-container">
+                <h1>招标分析助手</h1>
+                <p>利用AI智能分析招标文件，高效了解招标需求，精准匹配过往项目经验。</p>
+                <div class="upload-box">
+                    <button class="upload-btn" onclick="document.getElementById('tender-upload').click()">+ 选择招标文件</button>
+                    <div id="upload-info">支持 PDF, DOCX, TXT 等格式</div>
+                </div>
+                <button id="generate-report-btn" class="action-btn generate-btn" onclick="app.generateReport()" disabled>生成分析报告</button>
+            </div>
+        </div>
+
+        <!-- STEP 1: ANALYSIS PAGE -->
+        <div id="page-1" class="page">
+            <div class="page-header">
+                <div class="header-title-toolbar">
+                    <h1>分析结果</h1>
+                    <div class="toolbar" id="analysis-toolbar"></div>
+                </div>
+                <div class="header-actions">
+                    <button id="generate-forms-btn" class="action-btn" onclick="app.generateForms()">一键生成项目报告表单</button>
+                </div>
+            </div>
+            <div id="analysis-content-area"></div>
+        </div>
+
+        <!-- STEP 2: MULTI-FORM PAGE -->
+        <div id="page-2" class="page">
+            <div class="page-header">
+                <h1>最终项目报告表单</h1>
+                <div class="header-actions">
+                    <button id="export-btn" class="action-btn" onclick="app.showExportModal()" disabled>导出项目</button>
+                </div>
+            </div>
+            <div class="multi-form-container">
+                <nav class="form-nav">
+                    <div class="form-nav-header">
+                        <button onclick="app.selectAllFormItems(true)">全选</button>
+                        <button onclick="app.selectAllFormItems(false)">清除</button>
+                    </div>
+                    <div class="form-nav-list" id="form-nav-list"></div>
+                </nav>
+                <div class="form-display-area" id="form-display-area"></div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Export Modal -->
+<div id="export-modal" class="modal-overlay hidden">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h3>导出已选项目</h3>
+            <button class="modal-close" onclick="app.closeExportModal()">&times;</button>
+        </div>
+        <div class="modal-content">
+            <p>将导出以下 <strong id="export-count"></strong> 个已选项目：</p>
+            <div class="modal-project-list" id="export-project-list"></div>
+            <div class="modal-export-formats">
+                <button class="action-btn" onclick="app.confirmExport('PDF')">导出为 PDF</button>
+                <button class="action-btn" onclick="app.confirmExport('DOCX')">导出为 DOCX</button>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-cancel" onclick="app.closeExportModal()">取消</button>
+        </div>
+    </div>
+</div>
+
+<!-- Login Modal -->
+<div id="login-modal" class="modal-overlay login-modal hidden">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h3>登录 DWSS 系统</h3>
+            <button class="modal-close" onclick="app.closeLoginModal()">&times;</button>
+        </div>
+        <div class="modal-content">
+            <div class="login-system-info">
+                <h4>🔐 系统登录</h4>
+                <p>需要登录到DWSS平台来获取最新的项目数据和生成报告表单。</p>
+            </div>
+            <div id="login-status" class="login-status hidden"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-cancel" onclick="app.closeLoginModal()">取消</button>
+            <button id="login-submit-btn" class="login-btn" onclick="app.handleAutoLogin()">登录</button>
+        </div>
+    </div>
+</div>
+
+<!-- Image Preview Modal -->
+<div id="image-preview-modal" class="image-preview-modal hidden">
+    <div class="image-preview-modal-content">
+        <button class="image-preview-modal-close" onclick="app.closeImagePreviewModal()">&times;</button>
+        <img id="image-preview-modal-img" src="" alt="">
+        <div class="image-preview-modal-info">
+            <h4 id="image-preview-modal-title"></h4>
+            <p id="image-preview-modal-details"></p>
+        </div>
+    </div>
+</div>
+
+
+<script>
+// --- NAMESPACED APPLICATION LOGIC ---
+const app = {
+    // --- STATE MANAGEMENT ---
+    database: {
+        projects: [
+            { id: 1, title: 'SHENZHEN METRO LINE 4 (PHASE 2)', type: 'TRANSIT-ORIENTED DEVELOPMENTS', year: '2012', country: 'CHINA', city: 'SHENZHEN', developer: 'MTR Corporation Ltd.', gfa: '626,880 sqm', siteArea: '240,029 sqm', involvement: 'Property Development Planning Study, Conceptual Masterplanning', description: 'Line 4 Phase 2 of the Shenzhen Metro is a 16 km long mass transit line with ten stations and associated property development, predominantly in the Longhua Extension Area. Our scope of services includes the urban planning at four of the development sites which will accommodate a range of residential, commercial and institutional properties above or adjacent to the stations.', img: 'https://storage.googleapis.com/gemini-prod/images/4ed1c110-3949-43c2-b342-991590e8d0d5' },
+            { id: 2, title: 'TIN SHUI WAI TOWN LOT NO. 23 DEVELOPMENT', type: 'TRANSIT-ORIENTED DEVELOPMENTS', year: '2024', country: 'CHINA', city: 'HONG KONG', developer: 'Sun Hung Kai Properties Ltd.', gfa: '91,256 sqm', siteArea: '18,232 sqm', involvement: 'Project Architect, Design Architect', description: 'The proposed property development at TSWTL 23 is above Tin Wing Light Rail Transit Terminus. The project includes three 38-storey residential buildings with commercial spaces, a clubhouse and a car park.', img: 'https://storage.googleapis.com/gemini-prod/images/3257da41-11ec-45f8-b4b6-39149495acb6' },
+            { id: 3, title: 'METRO TOWN', type: 'TRANSIT-ORIENTED DEVELOPMENTS', year: '2007', country: 'CHINA', city: 'HONG KONG', developer: 'Cheung Kong (Holdings) Ltd.', gfa: '236,965 sqm', siteArea: '32,334 sqm', involvement: 'Project Architect, Design Architect', description: 'Metrotown is a residential complex built on top of an existing public transport interchange next to Tiu Keng Leng MTR Station. It consists of nine 50-58-storey towers with a total of 3,772 units.', img: 'https://storage.googleapis.com/gemini-prod/images/8a68b584-6997-40b5-a01c-6d9b93226a45' },
+            { id: 4, title: 'POLY HUCHONG STATION MIXED-USE DEVELOPMENT', type: 'TRANSIT-ORIENTED DEVELOPMENTS', year: 'In Progress', country: 'CHINA', city: 'FOSHAN', developer: 'Poly Huanan Industry Company Ltd', gfa: '700,845 sqm', siteArea: '172,909 sqm', involvement: 'Masterplanner, Design Architect', description: 'The project is located on the southwest of Chanxi New City. To the north is Huchong Station of Foshan Metro Line 2. The location has good connection to inter-city transportation and enjoys a convenient traffic network.', img: 'https://storage.googleapis.com/gemini-prod/images/73b3793f-cbbd-4171-be17-10659343cd2b' }
+        ],
+        analysisTasks: new Map([
+            ['task-1', { 
+                id: 'task-1', 
+                tenderTitle: '武汉理工大学基建、维修...',
+                analysisResult: {
+                    title: '武汉理工大学基建、维修、设备采购领域全过程管理平台采购项目',
+                    client: '武汉理工大学',
+                    budget: '990000元 (人民币)',
+                    deadline: '2024-09-29',
+                    summary: '本次招标项目为武汉理工大学基建、维修、设备采购领域全过程管理平台的供货、开发、调试、验收及售后服务。 预算金额为99万元，最高限价相同。 项目要求提供国产图形引擎支持BIM可视化协同管理，并实现与校园CIM数据底座集成。',
+                    details: '<h3>二、主要功能要求</h3><ul><li>可视化驾驶舱: 实现基建、维修、设备采购项目从立项申请到验收阶段的一站式流程化、可视化数字化管理。</li><li>BIM可视化协同管理: 支持BIM模型在线轻量化浏览，多专业单体模型在线整合。</li></ul>'
+                },
+                importedProjectIds: new Set(),
+                editedFormsData: new Map()
+            }],
+            ['task-2', { 
+                id: 'task-2', 
+                tenderTitle: '香港房屋委员会设计、供应...',
+                analysisResult: {
+                    title: '香港房屋委员会设计、供应、安装和维修保养升降机',
+                    client: '香港房屋委员会',
+                    budget: 'N/A',
+                    deadline: '2025-01-15',
+                    summary: '为香港各公共屋邨的升降机提供全面的设计、供应、安装及后续的维修保养服务。项目要求投标人具备丰富的垂直运输系统项目经验，并能提供高效、安全、可靠的解决方案。',
+                    details: '<h3>三、技术要求</h3><ul><li>升降机系统需符合最新的国际安全标准。</li><li>需提供智能监控系统，实现远程故障诊断。</li></ul>'
+                },
+                importedProjectIds: new Set(),
+                editedFormsData: new Map()
+            }]
+        ])
+    },
+    
+    currentState: {
+        activeTaskId: 'task-1',
+        currentStep: 1,
+        analysisEditMode: false,
+        formExportSelection: new Set(),
+        currentEditingFormId: null,
+    },
+
+    // --- INITIALIZATION ---
+    init() {
+        document.getElementById('tender-upload').addEventListener('change', this.handleFileSelect.bind(this));
+        
+        window.addEventListener('click', (e) => {
+            document.querySelectorAll('.dropdown-menu').forEach(menu => {
+                const parentButton = menu.previousElementSibling;
+                if (parentButton && !parentButton.contains(e.target) && !menu.classList.contains('hidden')) {
+                    menu.classList.add('hidden');
+                }
+            });
+        });
+
+        this.renderHistoryList();
+        this.loadStateForTask('task-1');
+    },
+
+    // --- RENDER & UI UPDATE FUNCTIONS ---
+    renderHistoryList() {
+        const ul = document.getElementById('history-list-ul');
+        ul.innerHTML = '';
+        this.database.analysisTasks.forEach(task => {
+            const li = document.createElement('li');
+            li.id = `history-${task.id}`;
+            li.textContent = task.tenderTitle;
+            li.onclick = () => this.loadStateForTask(task.id);
+            ul.appendChild(li);
+        });
+        this.updateActiveHistoryItem();
+    },
+
+    updateActiveHistoryItem() {
+        document.querySelectorAll('#history-list-ul li').forEach(li => {
+            li.classList.toggle('active', li.id === `history-${this.currentState.activeTaskId}`);
+        });
+    },
+
+    updateBreadcrumb() {
+        const container = document.getElementById('breadcrumb-container');
+        let html = '';
+        const base = `<a href="#" class="breadcrumb-item" onclick="app.goToStep(1)">分析结果</a>`;
+        switch (this.currentState.currentStep) {
+            case 2:
+                html = `${base} <span class="breadcrumb-separator">&gt;</span> <span class="breadcrumb-item active">表单编辑</span>`;
+                break;
+            default:
+                html = '';
+        }
+        container.innerHTML = html;
+    },
+
+    // --- CORE LOGIC & FLOW CONTROL ---
+    loadStateForTask(taskId) {
+        this.currentState.activeTaskId = taskId;
+        this.currentState.analysisEditMode = false; // Reset edit mode on task switch
+        this.currentState.formExportSelection.clear(); // Reset export selection
+        this.updateActiveHistoryItem();
+        this.goToStep(1);
+    },
+
+    goToStep(stepNumber) {
+        this.currentState.currentStep = stepNumber;
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById(`page-${stepNumber}`).classList.add('active');
+        this.updateBreadcrumb();
+
+        switch(stepNumber) {
+            case 1: this.renderAnalysisPage(); break;
+            case 2: this.renderMultiFormPage(); break;
+        }
+    },
+
+    startNewAnalysis() {
+        alert("此为原型功能演示。将创建一个新的分析任务。");
+        this.currentState.activeTaskId = null;
+        this.updateActiveHistoryItem();
+        this.goToStep(0);
+        document.getElementById('upload-info').textContent = '支持 PDF, DOCX, TXT 等格式';
+        document.getElementById('generate-report-btn').disabled = true;
+    },
+
+    handleFileSelect(event) {
+        const files = event.target.files;
+        if (files.length > 0) {
+            let fileNames = Array.from(files).map(f => f.name).join(', ');
+            document.getElementById('upload-info').innerHTML = `已选择: <span style="color: var(--primary-color); font-weight: 500;">${fileNames}</span>`;
+            document.getElementById('generate-report-btn').disabled = false;
+        }
+    },
+
+    generateReport() {
+        alert("正在模拟AI分析并生成报告...");
+        setTimeout(() => {
+            this.loadStateForTask('task-1');
+        }, 1000);
+    },
+
+    // --- STEP 1: ANALYSIS PAGE LOGIC ---
+    renderAnalysisPage() {
+        const task = this.database.analysisTasks.get(this.currentState.activeTaskId);
+        if (!task) return;
+        const result = task.analysisResult;
+        const editMode = this.currentState.analysisEditMode;
+
+        // Render Toolbar
+        const toolbar = document.getElementById('analysis-toolbar');
+        toolbar.innerHTML = `
+            <a onclick="alert('正在刷新分析结果...')">刷新</a>
+            <div style="position: relative;">
+                <a onclick="this.nextElementSibling.classList.toggle('hidden')">导出文件</a>
+                <div class="dropdown-menu hidden">
+                    <a href="#" onclick="app.exportAnalysisFile('PDF')">导出为 PDF</a>
+                    <a href="#" onclick="app.exportAnalysisFile('DOCX')">导出为 DOCX</a>
+                    <a href="#" onclick="app.exportAnalysisFile('MD')">导出为 MD</a>
+                </div>
+            </div>
+            <a id="analysis-edit-btn" onclick="app.toggleAnalysisEdit(true)">编辑</a>
+            <a id="analysis-save-btn" onclick="app.saveAnalysis()" class="hidden">保存分析</a>
+        `;
+        
+        // Render Content
+        const container = document.getElementById('analysis-content-area');
+        container.innerHTML = `
+            <div class="analysis-grid">
+                <div class="analysis-card"><div class="analysis-card-title">招标标题</div><div class="analysis-card-content">${result.title}</div></div>
+                <div class="analysis-card"><div class="analysis-card-title">招标单位</div><div class="analysis-card-content">${result.client}</div></div>
+                <div class="analysis-card"><div class="analysis-card-title">预算</div><div class="analysis-card-content">${result.budget}</div></div>
+                <div class="analysis-card"><div class="analysis-card-title">截止日期</div><div class="analysis-card-content">${result.deadline}</div></div>
+                <div class="analysis-summary">
+                    <div class="analysis-card-title">招标摘要</div>
+                    <div class="analysis-card-content" id="analysis-summary-content">
+                        ${editMode ? `<textarea id="summary-textarea">${result.summary}</textarea>` : result.summary}
+                    </div>
+                </div>
+            </div>
+            <div class="analysis-details">
+                <div id="analysis-details-content">
+                    ${editMode ? `<textarea id="details-textarea">${result.details}</textarea>` : result.details}
+                </div>
+            </div>
+        `;
+        
+        // **FIXED**: Directly manage button visibility here to break the recursive loop.
+        document.getElementById('analysis-edit-btn').classList.toggle('hidden', editMode);
+        document.getElementById('analysis-save-btn').classList.toggle('hidden', !editMode);
+    },
+
+    toggleAnalysisEdit(enable) {
+        this.currentState.analysisEditMode = enable;
+        // **FIXED**: This function now ONLY sets state and triggers a re-render.
+        this.renderAnalysisPage();
+    },
+
+    saveAnalysis() {
+        const task = this.database.analysisTasks.get(this.currentState.activeTaskId);
+        if (!task) return;
+
+        const newSummary = document.getElementById('summary-textarea').value;
+        const newDetails = document.getElementById('details-textarea').value;
+
+        task.analysisResult.summary = newSummary;
+        task.analysisResult.details = newDetails;
+        
+        alert("分析结果已成功保存！");
+        this.toggleAnalysisEdit(false);
+    },
+    
+    exportAnalysisFile(format) {
+        alert(`正在导出分析结果为 ${format} 格式... (此为原型功能演示)`);
+        document.querySelector('#analysis-toolbar .dropdown-menu').classList.add('hidden');
+    },
+
+    generateForms() {
+        const task = this.database.analysisTasks.get(this.currentState.activeTaskId);
+        if (!task) return;
+
+        // Show login modal first
+        this.showLoginModal();
+    },
+    
+    showLoginModal() {
+        document.getElementById('login-modal').classList.remove('hidden');
+        // Reset login status
+        const loginStatus = document.getElementById('login-status');
+        loginStatus.classList.add('hidden');
+        loginStatus.innerHTML = '';
+        
+        // Reset login button
+        const loginBtn = document.getElementById('login-submit-btn');
+        loginBtn.innerHTML = '登录';
+        loginBtn.disabled = false;
+    },
+    
+    closeLoginModal() {
+        document.getElementById('login-modal').classList.add('hidden');
+    },
+    
+    handleAutoLogin() {
+        const loginStatus = document.getElementById('login-status');
+        const loginBtn = document.getElementById('login-submit-btn');
+        
+        // Disable login button and show loading
+        loginBtn.innerHTML = '<span class="loading-spinner"></span>登录中...';
+        loginBtn.disabled = true;
+        
+        // Step 1: Connecting
+        loginStatus.innerHTML = '<span class="loading-spinner"></span>正在连接 DWSS 系统...';
+        loginStatus.className = 'login-status loading';
+        loginStatus.classList.remove('hidden');
+        
+        setTimeout(() => {
+            // Step 2: Success
+            loginStatus.innerHTML = '✓ 登录成功！正在获取项目数据...';
+            loginStatus.className = 'login-status success';
+            
+            setTimeout(() => {
+                this.closeLoginModal();
+                this.proceedWithFormGeneration();
+            }, 500);
+        }, 500);
+    },
+    
+    showLoginStatus(message, type) {
+        const statusDiv = document.getElementById('login-status');
+        statusDiv.textContent = message;
+        statusDiv.className = `login-status ${type}`;
+        statusDiv.classList.remove('hidden');
+    },
+    
+    proceedWithFormGeneration() {
+        const task = this.database.analysisTasks.get(this.currentState.activeTaskId);
+        if (!task) return;
+
+        // Show loading state on the generate button
+        const btn = document.getElementById('generate-forms-btn');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="loading-spinner"></span>正在分析匹配项目...';
+        btn.classList.add('btn-loading');
+        btn.disabled = true;
+        
+        const autoSelectedProjectIds = new Set([1, 2, 3, 4]); 
+
+        task.importedProjectIds = autoSelectedProjectIds;
+        task.editedFormsData.clear();
+        task.importedProjectIds.forEach(id => {
+            const projectData = this.database.projects.find(p => p.id === id);
+            if (projectData) {
+                // Initialize with knowledge base image as thumbnail if available
+                const initialThumbnail = projectData.img ? {
+                    id: `kb-${id}`,
+                    name: '知识库主图',
+                    url: projectData.img,
+                    source: 'knowledge-base',
+                    size: 0,
+                    isKnowledgeBase: true
+                } : null;
+                
+                task.editedFormsData.set(id, { 
+                    ...projectData, 
+                    thumbnail: initialThumbnail,
+                    referenceImages: []
+                });
+            }
+        });
+        
+        setTimeout(() => {
+             // Reset button state
+             btn.innerHTML = originalText;
+             btn.classList.remove('btn-loading');
+             btn.disabled = false;
+             
+             this.goToStep(2);
+        }, 2000);
+    },
+
+    // --- STEP 2: MULTI-FORM PAGE LOGIC ---
+    renderMultiFormPage() {
+        const task = this.database.analysisTasks.get(this.currentState.activeTaskId);
+        this.updateExportButtonState();
+
+        if (!task || task.importedProjectIds.size === 0) {
+            document.getElementById('form-nav-list').innerHTML = '<div style="padding: 12px; color: var(--text-light);">无已生成的项目表单。</div>';
+            document.getElementById('form-display-area').innerHTML = '<div class="placeholder" style="height: 100%; display: flex; align-items: center; justify-content: center; text-align: center; color: var(--text-light);"><h3>请先返回分析结果页面，<br>点击“一键生成项目报告表单”。</h3></div>';
+            return;
+        }
+
+        const formNavList = document.getElementById('form-nav-list');
+        formNavList.innerHTML = '';
+        task.importedProjectIds.forEach(projectId => {
+            const projectData = task.editedFormsData.get(projectId);
+            if (projectData) {
+                const isChecked = this.currentState.formExportSelection.has(projectId);
+                const navItem = document.createElement('div');
+                navItem.className = 'form-nav-item';
+                navItem.id = `form-nav-item-${projectId}`;
+                navItem.innerHTML = `
+                    <input type="checkbox" id="form-check-${projectId}" onchange="app.toggleFormExportSelection(${projectId})" ${isChecked ? 'checked' : ''}>
+                    <label for="form-check-${projectId}" class="form-nav-item-label" onclick="event.stopPropagation(); app.displayProjectForm(${projectId})">${projectData.title}</label>
+                `;
+                navItem.onclick = () => this.displayProjectForm(projectId);
+                formNavList.appendChild(navItem);
+            }
+        });
+
+        if (this.currentState.currentEditingFormId && task.importedProjectIds.has(this.currentState.currentEditingFormId)) {
+            this.displayProjectForm(this.currentState.currentEditingFormId);
+        } else {
+            const firstProjectId = task.importedProjectIds.values().next().value;
+            this.displayProjectForm(firstProjectId);
+        }
+    },
+
+    displayProjectForm(projectId) {
+        this.currentState.currentEditingFormId = projectId;
+        const task = this.database.analysisTasks.get(this.currentState.activeTaskId);
+        const projectData = task.editedFormsData.get(projectId);
+        if (!projectData) return;
+
+        document.querySelectorAll('.form-nav-item').forEach(item => item.classList.remove('active'));
+        document.getElementById(`form-nav-item-${projectId}`).classList.add('active');
+
+        const formArea = document.getElementById('form-display-area');
+        formArea.innerHTML = `
+            <div class="form-container">
+                <div class="form-header">
+                    <h3 id="form-header-title">${projectData.title}</h3>
+                    <button id="edit-btn" class="action-btn" onclick="app.toggleFormEdit(true)">编辑</button>
+                </div>
+                <form id="project-form" onsubmit="app.submitForm(event)">
+                    <div class="form-grid">
+                        <div class="form-group full-width"><label for="p-title">项目标题</label><input type="text" id="p-title" value="${projectData.title}" disabled></div>
+                        <div class="form-group"><label for="p-country">国家/地区</label><input type="text" id="p-country" value="${projectData.country}" disabled></div>
+                        <div class="form-group"><label for="p-city">城市</label><input type="text" id="p-city" value="${projectData.city}" disabled></div>
+                        <div class="form-group"><label for="p-year">竣工年份</label><input type="text" id="p-year" value="${projectData.year}" disabled></div>
+                        <div class="form-group"><label for="p-developer">发展商</label><input type="text" id="p-developer" value="${projectData.developer}" disabled></div>
+                        <div class="form-group"><label for="p-gfa">建筑面积</label><input type="text" id="p-gfa" value="${projectData.gfa}" disabled></div>
+                        <div class="form-group"><label for="p-site-area">用地面积</label><input type="text" id="p-site-area" value="${projectData.siteArea}" disabled></div>
+                        <div class="form-group full-width"><label for="p-involvement">服务范围</label><textarea id="p-involvement" disabled>${projectData.involvement}</textarea></div>
+                        <div class="form-group full-width"><label for="p-description">项目描述</label><textarea id="p-description" disabled>${projectData.description}</textarea></div>
+                        <div class="form-group full-width">
+                            <label>项目主图 (Project Thumbnail)</label>
+                            <div class="image-upload-section">
+                                <div class="image-upload-area" id="thumbnail-upload-area-${projectId}" ondrop="app.handleThumbnailDrop(event, ${projectId})" ondragover="app.handleImageDragOver(event)" ondragleave="app.handleImageDragLeave(event)">
+                                    <input type="file" id="thumbnail-upload-input-${projectId}" class="image-upload-input" accept="image/*" onchange="app.handleThumbnailSelect(event, ${projectId})">
+                                    <button type="button" class="image-upload-btn" onclick="document.getElementById('thumbnail-upload-input-${projectId}').click()" disabled id="thumbnail-upload-btn-${projectId}">+ 上传项目主图</button>
+                                    <div style="margin-top: 8px; font-size: 12px; color: var(--text-light);">支持 JPG, PNG, GIF 格式，只能上传一张图片，最大 5MB</div>
+                                </div>
+                                <div class="image-links-list" id="thumbnail-links-list-${projectId}"></div>
+                                <div class="image-error-message" id="thumbnail-error-${projectId}" style="display: none; color: #dc3545; font-size: 12px; margin-top: 8px;"></div>
+                            </div>
+                        </div>
+                        <div class="form-group full-width">
+                            <label>项目参考图片 (Reference Images)</label>
+                            <div class="image-upload-section">
+                                <div class="image-upload-area" id="reference-upload-area-${projectId}" ondrop="app.handleReferenceImageDrop(event, ${projectId})" ondragover="app.handleImageDragOver(event)" ondragleave="app.handleImageDragLeave(event)">
+                                    <input type="file" id="reference-upload-input-${projectId}" class="image-upload-input" multiple accept="image/*" onchange="app.handleReferenceImageSelect(event, ${projectId})">
+                                    <button type="button" class="image-upload-btn" onclick="document.getElementById('reference-upload-input-${projectId}').click()" disabled id="reference-upload-btn-${projectId}">+ 添加参考图片</button>
+                                    <div style="margin-top: 8px; font-size: 12px; color: var(--text-light);">支持 JPG, PNG, GIF 格式，最多上传 8 张图片，每张最大 5MB</div>
+                                </div>
+                                <div class="image-links-list" id="reference-links-list-${projectId}"></div>
+                                <div class="image-error-message" id="reference-error-${projectId}" style="display: none; color: #dc3545; font-size: 12px; margin-top: 8px;"></div>
+                            </div>
+                        </div>
+                        <div id="save-btn-container" class="form-actions hidden"><button type="submit" class="submit-btn">保存更改</button></div>
+                    </div>
+                </form>
+            </div>
+        `;
+        
+        // Initialize image links lists after form is rendered
+        setTimeout(() => {
+            this.updateThumbnailList(projectId);
+            this.updateReferenceImagesList(projectId);
+        }, 100);
+    },
+
+    toggleFormEdit(isEditable) {
+        const formElements = document.querySelectorAll('#project-form input, #project-form textarea');
+        formElements.forEach(el => el.disabled = !isEditable);
+        document.getElementById('edit-btn').classList.toggle('hidden', isEditable);
+        document.getElementById('save-btn-container').classList.toggle('hidden', !isEditable);
+        
+        // Enable/disable image upload buttons
+        const currentId = this.currentState.currentEditingFormId;
+        const thumbnailBtn = document.getElementById(`thumbnail-upload-btn-${currentId}`);
+        const referenceBtn = document.getElementById(`reference-upload-btn-${currentId}`);
+        if (thumbnailBtn) {
+            thumbnailBtn.disabled = !isEditable;
+        }
+        if (referenceBtn) {
+            referenceBtn.disabled = !isEditable;
+        }
+    },
+
+    submitForm(event) {
+        event.preventDefault();
+        const currentId = this.currentState.currentEditingFormId;
+        const task = this.database.analysisTasks.get(this.currentState.activeTaskId);
+        if (!task || currentId === null) return;
+
+        const currentData = task.editedFormsData.get(currentId);
+        currentData.title = document.getElementById('p-title').value;
+        currentData.country = document.getElementById('p-country').value;
+        currentData.city = document.getElementById('p-city').value;
+        currentData.year = document.getElementById('p-year').value;
+        currentData.developer = document.getElementById('p-developer').value;
+        currentData.gfa = document.getElementById('p-gfa').value;
+        currentData.siteArea = document.getElementById('p-site-area').value;
+        currentData.involvement = document.getElementById('p-involvement').value;
+        currentData.description = document.getElementById('p-description').value;
+        
+        // Images are already saved in currentData.images during upload
+        
+        document.querySelector(`#form-nav-item-${currentId} .form-nav-item-label`).textContent = currentData.title;
+        document.getElementById('form-header-title').textContent = currentData.title;
+
+        alert(`项目 "${currentData.title}" 的更改已在Jarvis的“工作快照”中保存成功！`);
+        this.toggleFormEdit(false);
+    },
+
+    // --- EXPORT LOGIC ---
+    toggleFormExportSelection(projectId) {
+        const checkbox = document.getElementById(`form-check-${projectId}`);
+        if (checkbox.checked) {
+            this.currentState.formExportSelection.add(projectId);
+        } else {
+            this.currentState.formExportSelection.delete(projectId);
+        }
+        this.updateExportButtonState();
+    },
+
+    selectAllFormItems(select) {
+        const task = this.database.analysisTasks.get(this.currentState.activeTaskId);
+        if (!task) return;
+        
+        task.importedProjectIds.forEach(id => {
+            const checkbox = document.getElementById(`form-check-${id}`);
+            if (checkbox) checkbox.checked = select;
+            if (select) {
+                this.currentState.formExportSelection.add(id);
+            } else {
+                this.currentState.formExportSelection.delete(id);
+            }
+        });
+        this.updateExportButtonState();
+    },
+
+    updateExportButtonState() {
+        const exportBtn = document.getElementById('export-btn');
+        if (exportBtn) {
+            exportBtn.disabled = this.currentState.formExportSelection.size === 0;
+        }
+    },
+
+    showExportModal() {
+        const selection = this.currentState.formExportSelection;
+        const task = this.database.analysisTasks.get(this.currentState.activeTaskId);
+        if (selection.size === 0 || !task) return;
+
+        document.getElementById('export-count').textContent = selection.size;
+        const listContainer = document.getElementById('export-project-list');
+        listContainer.innerHTML = '';
+        selection.forEach(id => {
+            const project = task.editedFormsData.get(id);
+            if (project) {
+                const item = document.createElement('div');
+                item.className = 'modal-project-item';
+                item.innerHTML = `<div class="modal-project-info"><h4>${project.title}</h4></div>`;
+                listContainer.appendChild(item);
+            }
+        });
+        document.getElementById('export-modal').classList.remove('hidden');
+    },
+
+    closeExportModal() {
+        document.getElementById('export-modal').classList.add('hidden');
+    },
+
+    confirmExport(format) {
+        const count = this.currentState.formExportSelection.size;
+        alert(`正在将 ${count} 个已选项目的最终数据合并导出为 ${format} 格式...\n(此为原型功能演示)`);
+        this.closeExportModal();
+    },
+    
+    // --- IMAGE UPLOAD FUNCTIONALITY ---
+    handleImageDragOver(event) {
+        event.preventDefault();
+        event.currentTarget.classList.add('dragover');
+    },
+    
+    handleImageDragLeave(event) {
+        event.currentTarget.classList.remove('dragover');
+    },
+    
+    // Thumbnail handlers
+    handleThumbnailDrop(event, projectId) {
+        event.preventDefault();
+        event.currentTarget.classList.remove('dragover');
+        const files = event.dataTransfer.files;
+        this.processThumbnailFiles(files, projectId);
+    },
+    
+    handleThumbnailSelect(event, projectId) {
+        const files = event.target.files;
+        this.processThumbnailFiles(files, projectId);
+    },
+    
+    // Reference image handlers
+    handleReferenceImageDrop(event, projectId) {
+        event.preventDefault();
+        event.currentTarget.classList.remove('dragover');
+        const files = event.dataTransfer.files;
+        this.processReferenceImageFiles(files, projectId);
+    },
+    
+    handleReferenceImageSelect(event, projectId) {
+        const files = event.target.files;
+        this.processReferenceImageFiles(files, projectId);
+    },
+    
+    processThumbnailFiles(files, projectId) {
+        const task = this.database.analysisTasks.get(this.currentState.activeTaskId);
+        const projectData = task.editedFormsData.get(projectId);
+        if (!projectData) return;
+        
+        this.clearError('thumbnail', projectId);
+        
+        if (files.length === 0) return;
+        
+        // Only process the first file for thumbnail
+        const file = files[0];
+        
+        if (files.length > 1) {
+            this.showError('thumbnail', projectId, '项目主图只能上传一张图片');
+            return;
+        }
+        
+        if (!this.validateImageFile(file, projectId, 'thumbnail')) {
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const imageData = {
+                id: Date.now() + Math.random(),
+                name: file.name,
+                url: e.target.result,
+                source: 'uploaded',
+                size: file.size,
+                isKnowledgeBase: false
+            };
+            projectData.thumbnail = imageData;
+            this.updateThumbnailList(projectId);
+        };
+        reader.readAsDataURL(file);
+    },
+    
+    processReferenceImageFiles(files, projectId) {
+        const task = this.database.analysisTasks.get(this.currentState.activeTaskId);
+        const projectData = task.editedFormsData.get(projectId);
+        if (!projectData) return;
+        
+        this.clearError('reference', projectId);
+        
+        if (!projectData.referenceImages) {
+            projectData.referenceImages = [];
+        }
+        
+        const maxReferenceImages = 8;
+        const currentCount = projectData.referenceImages.length;
+        const newFilesCount = files.length;
+        
+        if (currentCount + newFilesCount > maxReferenceImages) {
+            this.showError('reference', projectId, `参考图片最多只能上传 ${maxReferenceImages} 张，当前已有 ${currentCount} 张`);
+            return;
+        }
+        
+        Array.from(files).forEach(file => {
+            if (file.type.startsWith('image/') && this.validateImageFile(file, projectId, 'reference')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const imageData = {
+                        id: Date.now() + Math.random(),
+                        name: file.name,
+                        url: e.target.result,
+                        source: 'uploaded',
+                        size: file.size,
+                        isKnowledgeBase: false
+                    };
+                    projectData.referenceImages.push(imageData);
+                    this.updateReferenceImagesList(projectId);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    },
+    
+    updateThumbnailList(projectId) {
+        const task = this.database.analysisTasks.get(this.currentState.activeTaskId);
+        const projectData = task.editedFormsData.get(projectId);
+        const linksList = document.getElementById(`thumbnail-links-list-${projectId}`);
+        
+        if (!projectData || !linksList) return;
+        
+        linksList.innerHTML = '';
+        
+        if (!projectData.thumbnail) {
+            linksList.innerHTML = '<div class="empty-image-message">暂无主图，点击上方按钮上传项目主图</div>';
+            return;
+        }
+        
+        const image = projectData.thumbnail;
+        const linkItem = document.createElement('div');
+        linkItem.className = 'image-link-item';
+        
+        const sourceLabel = image.source === 'knowledge-base' ? '知识库' : '上传';
+        const sourceClass = image.source === 'knowledge-base' ? 'knowledge-base' : 'uploaded';
+        const sizeText = image.size > 0 ? ` (${Math.round(image.size / 1024)}KB)` : '';
+        
+        linkItem.innerHTML = `
+            <div class="image-link-content">
+                <span class="image-source-badge ${sourceClass}">${sourceLabel}</span>
+                <a href="#" class="image-link-preview" onclick="app.showThumbnailPreview('${image.id}', ${projectId}); return false;">
+                    ${image.name}${sizeText}
+                </a>
+            </div>
+            <div class="image-link-actions">
+                ${image.isKnowledgeBase ? '<button class="image-replace-link-btn" onclick="app.replaceThumbnail(' + projectId + ', \'' + image.id + '\')" title="替换主图">替换</button>' : ''}
+                <button class="image-remove-link-btn" onclick="app.removeThumbnail(${projectId})" title="删除主图">删除</button>
+            </div>
+        `;
+        linksList.appendChild(linkItem);
+    },
+    
+    updateReferenceImagesList(projectId) {
+        const task = this.database.analysisTasks.get(this.currentState.activeTaskId);
+        const projectData = task.editedFormsData.get(projectId);
+        const linksList = document.getElementById(`reference-links-list-${projectId}`);
+        
+        if (!projectData || !linksList) return;
+        
+        // Initialize referenceImages array if it doesn't exist
+        if (!projectData.referenceImages) {
+            projectData.referenceImages = [];
+        }
+        
+        linksList.innerHTML = '';
+        
+        if (projectData.referenceImages.length === 0) {
+            linksList.innerHTML = '<div class="empty-image-message">暂无参考图片，点击上方按钮添加参考图片</div>';
+            return;
+        }
+        
+        projectData.referenceImages.forEach(image => {
+            const linkItem = document.createElement('div');
+            linkItem.className = 'image-link-item';
+            
+            const sourceLabel = image.source === 'knowledge-base' ? '知识库' : '上传';
+            const sourceClass = image.source === 'knowledge-base' ? 'knowledge-base' : 'uploaded';
+            const sizeText = image.size > 0 ? ` (${Math.round(image.size / 1024)}KB)` : '';
+            
+            linkItem.innerHTML = `
+                <div class="image-link-content">
+                    <span class="image-source-badge ${sourceClass}">${sourceLabel}</span>
+                    <a href="#" class="image-link-preview" onclick="app.showReferenceImagePreview('${image.id}', ${projectId}); return false;">
+                        ${image.name}${sizeText}
+                    </a>
+                </div>
+                <div class="image-link-actions">
+                    <button class="image-remove-link-btn" onclick="app.removeReferenceImage(${projectId}, '${image.id}')" title="删除图片">删除</button>
+                </div>
+            `;
+            linksList.appendChild(linkItem);
+        });
+    },
+    
+    removeThumbnail(projectId) {
+        const task = this.database.analysisTasks.get(this.currentState.activeTaskId);
+        const projectData = task.editedFormsData.get(projectId);
+        if (!projectData) return;
+        
+        projectData.thumbnail = null;
+        this.updateThumbnailList(projectId);
+    },
+    
+    removeReferenceImage(projectId, imageId) {
+        const task = this.database.analysisTasks.get(this.currentState.activeTaskId);
+        const projectData = task.editedFormsData.get(projectId);
+        if (!projectData || !projectData.referenceImages) return;
+        
+        projectData.referenceImages = projectData.referenceImages.filter(img => img.id != imageId);
+        this.updateReferenceImagesList(projectId);
+    },
+    
+    // --- IMAGE PREVIEW MODAL FUNCTIONALITY ---
+    showThumbnailPreview(imageId, projectId) {
+        const task = this.database.analysisTasks.get(this.currentState.activeTaskId);
+        const projectData = task.editedFormsData.get(projectId);
+        if (!projectData || !projectData.thumbnail) return;
+        
+        const image = projectData.thumbnail;
+        if (image.id != imageId) return;
+        
+        this.displayImagePreview(image, '项目主图');
+    },
+    
+    showReferenceImagePreview(imageId, projectId) {
+        const task = this.database.analysisTasks.get(this.currentState.activeTaskId);
+        const projectData = task.editedFormsData.get(projectId);
+        if (!projectData || !projectData.referenceImages) return;
+        
+        const image = projectData.referenceImages.find(img => img.id == imageId);
+        if (!image) return;
+        
+        this.displayImagePreview(image, '参考图片');
+    },
+    
+    displayImagePreview(image, imageType) {
+        const modal = document.getElementById('image-preview-modal');
+        const modalImg = document.getElementById('image-preview-modal-img');
+        const modalTitle = document.getElementById('image-preview-modal-title');
+        const modalDetails = document.getElementById('image-preview-modal-details');
+        
+        // 生成白色假图片 - 创建一个 Canvas 绘制白色矩形
+        const canvas = document.createElement('canvas');
+        canvas.width = 800;
+        canvas.height = 600;
+        const ctx = canvas.getContext('2d');
+        
+        // 填充白色背景
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // 添加边框
+        ctx.strokeStyle = '#e0e0e0';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
+        
+        // 添加文字提示
+        ctx.fillStyle = '#999999';
+        ctx.font = '24px Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('图片预览占位图', canvas.width / 2, canvas.height / 2 - 40);
+        
+        ctx.font = '16px Arial, sans-serif';
+        ctx.fillText(`${imageType}: ${image.name}`, canvas.width / 2, canvas.height / 2);
+        
+        const sourceText = image.source === 'knowledge-base' ? '知识库图片' : '上传图片';
+        ctx.fillText(`来源: ${sourceText}`, canvas.width / 2, canvas.height / 2 + 30);
+        
+        modalImg.src = canvas.toDataURL();
+        modalTitle.textContent = `${image.name} (${imageType}预览)`;
+        
+        const sizeText = image.size > 0 ? ` • 大小: ${Math.round(image.size / 1024)}KB` : '';
+        modalDetails.textContent = `${imageType} • ${sourceText}${sizeText} • 此为预览占位图`;
+        
+        modal.classList.remove('hidden');
+        
+        // Close modal when clicking outside the image
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                this.closeImagePreviewModal();
+            }
+        };
+    },
+    
+    closeImagePreviewModal() {
+        document.getElementById('image-preview-modal').classList.add('hidden');
+    },
+    
+    // --- IMAGE REPLACEMENT FUNCTIONALITY ---
+    replaceThumbnail(projectId, imageId) {
+        // Create a temporary file input for image replacement
+        const tempInput = document.createElement('input');
+        tempInput.type = 'file';
+        tempInput.accept = 'image/*';
+        tempInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file && file.type.startsWith('image/') && this.validateImageFile(file)) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const task = this.database.analysisTasks.get(this.currentState.activeTaskId);
+                    const projectData = task.editedFormsData.get(projectId);
+                    if (!projectData || !projectData.thumbnail) return;
+                    
+                    if (projectData.thumbnail.id == imageId) {
+                        // Replace the thumbnail with the new uploaded image
+                        projectData.thumbnail = {
+                            id: imageId, // Keep the same ID
+                            name: file.name,
+                            url: event.target.result,
+                            source: 'uploaded',
+                            size: file.size,
+                            isKnowledgeBase: false
+                        };
+                        this.updateThumbnailList(projectId);
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+        tempInput.click();
+    },
+    
+    // --- ERROR HANDLING FUNCTIONS ---
+    showError(type, projectId, message) {
+        const errorElement = document.getElementById(`${type}-error-${projectId}`);
+        if (errorElement) {
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+            // Auto-hide error after 5 seconds
+            setTimeout(() => {
+                this.clearError(type, projectId);
+            }, 5000);
+        }
+    },
+    
+    clearError(type, projectId) {
+        const errorElement = document.getElementById(`${type}-error-${projectId}`);
+        if (errorElement) {
+            errorElement.style.display = 'none';
+            errorElement.textContent = '';
+        }
+    },
+    
+    // --- IMAGE VALIDATION ---
+    validateImageFile(file, projectId = null, type = null) {
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        
+        if (!allowedTypes.includes(file.type)) {
+            const errorMsg = '不支持的图片格式。请选择 JPG、PNG、GIF 或 WebP 格式的图片。';
+            if (projectId && type) {
+                this.showError(type, projectId, errorMsg);
+            } else {
+                alert(errorMsg);
+            }
+            return false;
+        }
+        
+        if (file.size > maxSize) {
+            const errorMsg = '图片文件过大。请选择小于 5MB 的图片。';
+            if (projectId && type) {
+                this.showError(type, projectId, errorMsg);
+            } else {
+                alert(errorMsg);
+            }
+            return false;
+        }
+        
+        return true;
+    }
+};
+
+// --- START THE APP ---
+document.addEventListener('DOMContentLoaded', () => {
+    app.init();
+});
+</script>
+</body>
+</html>
