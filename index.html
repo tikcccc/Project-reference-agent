@@ -176,8 +176,6 @@
         .image-source-badge.uploaded { background-color: rgba(40, 167, 69, 0.9); }
         .image-link-actions { display: flex; gap: 8px; }
         .image-link-actions button { background: none; border: none; padding: 4px 8px; border-radius: 3px; font-size: 12px; cursor: pointer; transition: all 0.3s; }
-        .image-replace-link-btn { color: var(--primary-color); background-color: rgba(42, 110, 227, 0.1); }
-        .image-replace-link-btn:hover { background-color: rgba(42, 110, 227, 0.2); }
         .image-remove-link-btn { color: #dc3545; background-color: rgba(220, 53, 69, 0.1); }
         .image-remove-link-btn:hover { background-color: rgba(220, 53, 69, 0.2); }
         .empty-image-message { padding: 16px; text-align: center; color: var(--text-light); font-size: 14px; }
@@ -191,8 +189,6 @@
         .image-preview-item .image-source.uploaded { background-color: rgba(40, 167, 69, 0.9); }
         .image-remove-btn { position: absolute; top: 4px; right: 4px; background-color: rgba(255, 0, 0, 0.8); color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; }
         .image-remove-btn:hover { background-color: rgba(255, 0, 0, 1); }
-        .image-replace-btn { position: absolute; bottom: 4px; right: 4px; background-color: rgba(42, 110, 227, 0.9); color: white; border: none; border-radius: 3px; padding: 2px 6px; cursor: pointer; font-size: 10px; }
-        .image-replace-btn:hover { background-color: rgba(42, 110, 227, 1); }
         .image-upload-input { display: none; }
         
         /* Image Preview Modal Styles */
@@ -854,8 +850,8 @@ const app = {
                 navItem.className = 'form-nav-item';
                 navItem.id = `form-nav-item-${projectId}`;
                 navItem.innerHTML = `
-                    <input type="checkbox" id="form-check-${projectId}" onchange="app.toggleFormExportSelection(${projectId})" ${isChecked ? 'checked' : ''}>
-                    <label for="form-check-${projectId}" class="form-nav-item-label" onclick="event.stopPropagation(); app.displayProjectForm(${projectId})">${projectData.title}</label>
+                    <input type="checkbox" id="form-check-${projectId}" onchange="event.stopPropagation(); app.toggleFormExportSelection(${projectId})" onclick="event.stopPropagation()" ${isChecked ? 'checked' : ''}>
+                    <span class="form-nav-item-label">${projectData.title}</span>
                 `;
                 navItem.onclick = () => this.displayProjectForm(projectId);
                 formNavList.appendChild(navItem);
@@ -1079,7 +1075,7 @@ const app = {
         this.processReferenceImageFiles(files, projectId);
     },
     
-    processThumbnailFiles(files, projectId) {
+    async processThumbnailFiles(files, projectId) {
         const task = this.database.analysisTasks.get(this.currentState.activeTaskId);
         const projectData = task.editedFormsData.get(projectId);
         if (!projectData) return;
@@ -1088,15 +1084,23 @@ const app = {
         
         if (files.length === 0) return;
         
-        // Only process the first file for thumbnail
-        const file = files[0];
-        
-        if (files.length > 1) {
-            this.showError('thumbnail', projectId, '项目主图只能上传一张图片');
+        // 检查上传数量限制
+        if (!this.checkUploadLimits(files, projectId, 'thumbnail')) {
             return;
         }
         
+        // Only process the first file for thumbnail
+        const file = files[0];
+        
+        // 基础文件验证
         if (!this.validateImageFile(file, projectId, 'thumbnail')) {
+            return;
+        }
+        
+        // 检查图片尺寸
+        const dimensionResult = await this.validateImageDimensions(file);
+        if (!dimensionResult.isValid) {
+            this.showError('thumbnail', projectId, dimensionResult.errorMessage);
             return;
         }
         
@@ -1116,7 +1120,7 @@ const app = {
         reader.readAsDataURL(file);
     },
     
-    processReferenceImageFiles(files, projectId) {
+    async processReferenceImageFiles(files, projectId) {
         const task = this.database.analysisTasks.get(this.currentState.activeTaskId);
         const projectData = task.editedFormsData.get(projectId);
         if (!projectData) return;
@@ -1127,33 +1131,43 @@ const app = {
             projectData.referenceImages = [];
         }
         
-        const maxReferenceImages = 8;
-        const currentCount = projectData.referenceImages.length;
-        const newFilesCount = files.length;
-        
-        if (currentCount + newFilesCount > maxReferenceImages) {
-            this.showError('reference', projectId, `参考图片最多只能上传 ${maxReferenceImages} 张，当前已有 ${currentCount} 张`);
+        // 检查上传数量限制
+        if (!this.checkUploadLimits(files, projectId, 'reference')) {
             return;
         }
         
-        Array.from(files).forEach(file => {
-            if (file.type.startsWith('image/') && this.validateImageFile(file, projectId, 'reference')) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const imageData = {
-                        id: Date.now() + Math.random(),
-                        name: file.name,
-                        url: e.target.result,
-                        source: 'uploaded',
-                        size: file.size,
-                        isKnowledgeBase: false
-                    };
-                    projectData.referenceImages.push(imageData);
-                    this.updateReferenceImagesList(projectId);
-                };
-                reader.readAsDataURL(file);
+        // 处理每个文件
+        for (const file of files) {
+            if (!file.type.startsWith('image/')) continue;
+            
+            // 基础文件验证
+            if (!this.validateImageFile(file, projectId, 'reference')) {
+                continue;
             }
-        });
+            
+            // 检查图片尺寸
+            const dimensionResult = await this.validateImageDimensions(file);
+            if (!dimensionResult.isValid) {
+                this.showError('reference', projectId, dimensionResult.errorMessage);
+                continue;
+            }
+            
+            // 处理图片
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const imageData = {
+                    id: Date.now() + Math.random(),
+                    name: file.name,
+                    url: e.target.result,
+                    source: 'uploaded',
+                    size: file.size,
+                    isKnowledgeBase: false
+                };
+                projectData.referenceImages.push(imageData);
+                this.updateReferenceImagesList(projectId);
+            };
+            reader.readAsDataURL(file);
+        }
     },
     
     updateThumbnailList(projectId) {
@@ -1186,8 +1200,7 @@ const app = {
                 </a>
             </div>
             <div class="image-link-actions">
-                ${image.isKnowledgeBase ? '<button class="image-replace-link-btn" onclick="app.replaceThumbnail(' + projectId + ', \'' + image.id + '\')" title="替换主图">替换</button>' : ''}
-                <button class="image-remove-link-btn" onclick="app.removeThumbnail(${projectId})" title="删除主图">删除</button>
+                <button type="button" class="image-remove-link-btn" onclick="app.removeThumbnail(${projectId})" title="删除主图">删除</button>
             </div>
         `;
         linksList.appendChild(linkItem);
@@ -1228,7 +1241,7 @@ const app = {
                     </a>
                 </div>
                 <div class="image-link-actions">
-                    <button class="image-remove-link-btn" onclick="app.removeReferenceImage(${projectId}, '${image.id}')" title="删除图片">删除</button>
+                    <button type="button" class="image-remove-link-btn" onclick="app.removeReferenceImage(${projectId}, '${image.id}')" title="删除图片">删除</button>
                 </div>
             `;
             linksList.appendChild(linkItem);
@@ -1238,10 +1251,22 @@ const app = {
     removeThumbnail(projectId) {
         const task = this.database.analysisTasks.get(this.currentState.activeTaskId);
         const projectData = task.editedFormsData.get(projectId);
-        if (!projectData) return;
+        if (!projectData || !projectData.thumbnail) return;
         
-        projectData.thumbnail = null;
-        this.updateThumbnailList(projectId);
+        const imageName = projectData.thumbnail.name;
+        this.showConfirm(
+            `确定要删除项目主图 "${imageName}" 吗？删除后无法恢复。`,
+            '删除确认',
+            'warning'
+        ).then((confirmed) => {
+            if (confirmed) {
+                projectData.thumbnail = null;
+                this.updateThumbnailList(projectId);
+                this.showAlert('项目主图已删除', '删除成功', 'success');
+            }
+        }).catch(() => {
+            // 用户取消删除，不做任何操作
+        });
     },
     
     removeReferenceImage(projectId, imageId) {
@@ -1249,8 +1274,23 @@ const app = {
         const projectData = task.editedFormsData.get(projectId);
         if (!projectData || !projectData.referenceImages) return;
         
-        projectData.referenceImages = projectData.referenceImages.filter(img => img.id != imageId);
-        this.updateReferenceImagesList(projectId);
+        // 查找要删除的图片
+        const imageToDelete = projectData.referenceImages.find(img => img.id == imageId);
+        if (!imageToDelete) return;
+        
+        this.showConfirm(
+            `确定要删除参考图片 "${imageToDelete.name}" 吗？删除后无法恢复。`,
+            '删除确认',
+            'warning'
+        ).then((confirmed) => {
+            if (confirmed) {
+                projectData.referenceImages = projectData.referenceImages.filter(img => img.id != imageId);
+                this.updateReferenceImagesList(projectId);
+                this.showAlert('参考图片已删除', '删除成功', 'success');
+            }
+        }).catch(() => {
+            // 用户取消删除，不做任何操作
+        });
     },
     
     // --- IMAGE PREVIEW MODAL FUNCTIONALITY ---
@@ -1329,39 +1369,6 @@ const app = {
         document.getElementById('image-preview-modal').classList.add('hidden');
     },
     
-    // --- IMAGE REPLACEMENT FUNCTIONALITY ---
-    replaceThumbnail(projectId, imageId) {
-        // Create a temporary file input for image replacement
-        const tempInput = document.createElement('input');
-        tempInput.type = 'file';
-        tempInput.accept = 'image/*';
-        tempInput.onchange = (e) => {
-            const file = e.target.files[0];
-            if (file && file.type.startsWith('image/') && this.validateImageFile(file)) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    const task = this.database.analysisTasks.get(this.currentState.activeTaskId);
-                    const projectData = task.editedFormsData.get(projectId);
-                    if (!projectData || !projectData.thumbnail) return;
-                    
-                    if (projectData.thumbnail.id == imageId) {
-                        // Replace the thumbnail with the new uploaded image
-                        projectData.thumbnail = {
-                            id: imageId, // Keep the same ID
-                            name: file.name,
-                            url: event.target.result,
-                            source: 'uploaded',
-                            size: file.size,
-                            isKnowledgeBase: false
-                        };
-                        this.updateThumbnailList(projectId);
-                    }
-                };
-                reader.readAsDataURL(file);
-            }
-        };
-        tempInput.click();
-    },
     
     // --- ERROR HANDLING FUNCTIONS ---
     showError(type, projectId, message) {
@@ -1407,6 +1414,55 @@ const app = {
                 this.showCustomModal('错误', errorMsg, 'error');
             }
             return false;
+        }
+        
+        return true;
+    },
+    
+    // 检查图片尺寸的异步函数
+    validateImageDimensions(file, maxWidth = 4096, maxHeight = 4096) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = function() {
+                const isValid = this.width <= maxWidth && this.height <= maxHeight;
+                resolve({
+                    isValid,
+                    width: this.width,
+                    height: this.height,
+                    errorMessage: isValid ? null : `图片尺寸过大（${this.width}×${this.height}）。请选择尺寸小于 ${maxWidth}×${maxHeight} 像素的图片。`
+                });
+            };
+            img.onerror = function() {
+                resolve({
+                    isValid: false,
+                    width: 0,
+                    height: 0,
+                    errorMessage: '无法读取图片文件，请选择有效的图片。'
+                });
+            };
+            img.src = URL.createObjectURL(file);
+        });
+    },
+    
+    // 检查上传数量限制
+    checkUploadLimits(files, projectId, type) {
+        const task = this.database.analysisTasks.get(this.currentState.activeTaskId);
+        const projectData = task.editedFormsData.get(projectId);
+        
+        if (type === 'thumbnail') {
+            if (files.length > 1) {
+                this.showError(type, projectId, '项目主图只能上传一张图片');
+                return false;
+            }
+        } else if (type === 'reference') {
+            const maxReferenceImages = 8;
+            const currentCount = projectData.referenceImages ? projectData.referenceImages.length : 0;
+            const newFilesCount = files.length;
+            
+            if (currentCount + newFilesCount > maxReferenceImages) {
+                this.showError(type, projectId, `参考图片最多只能上传 ${maxReferenceImages} 张，当前已有 ${currentCount} 张，无法再添加 ${newFilesCount} 张图片`);
+                return false;
+            }
         }
         
         return true;
